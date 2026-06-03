@@ -1,0 +1,48 @@
+{
+  "name": "legion-go-drivers",
+  "version": "1.0.0",
+  "description": "Download and install official Lenovo drivers for the Legion GO",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "keywords": ["lenovo", "legion-go", "drivers"],
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.0"
+  },
+  "build": {
+    "appId": "com.legiongotools.drivers",
+    "productName": "Legion GO Drivers",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**",
+      "node_modules/**",
+      "!node_modules/electron-builder/**",
+      "!node_modules/.cache/**"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "portable": {
+      "artifactName": "Legion-GO-Drivers-${version}.exe",
+      "unpackDirName": "Legion-GO-Drivers"
+    }
+  }
+}

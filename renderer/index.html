@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <title>Legion GO Driver Manager</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="logo">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="6" fill="#e31937"/>
+          <path d="M7 9h4v12h8v3H7V9zm10 3h8v3h-5v1.5h5V19h-5v2h5v3h-8V12z" fill="white"/>
+        </svg>
+        <span>Legion GO Driver Manager</span>
+      </div>
+      <div class="header-actions">
+        <button id="btn-refresh" class="btn btn-secondary" title="Re-fetch from Lenovo">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          Refresh
+        </button>
+        <button id="btn-folder" class="btn btn-secondary" title="Change download folder">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span id="folder-label">Choose Folder</span>
+        </button>
+      </div>
+    </header>
+
+    <div id="status-bar">
+      <span id="status-text">Loading drivers from Lenovo...</span>
+    </div>
+
+    <div id="search-bar" style="display:none">
+      <div class="search-input-wrap">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input id="search-input" type="text" placeholder="Search drivers…" autocomplete="off" spellcheck="false" />
+        <button id="btn-clear-search" class="btn-clear-search" style="display:none" aria-label="Clear search">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <button id="btn-filters" class="btn btn-secondary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
+        </svg>
+        Filters
+        <span id="filter-badge" class="filter-badge" style="display:none">0</span>
+      </button>
+    </div>
+
+    <div id="filter-drawer" class="filter-drawer" style="display:none">
+      <div class="filter-group">
+        <div class="filter-group-label">Category</div>
+        <div id="filter-chips-category" class="filter-chips"></div>
+      </div>
+      <div class="filter-group">
+        <div class="filter-group-label">Priority</div>
+        <div id="filter-chips-priority" class="filter-chips"></div>
+      </div>
+      <div class="filter-footer">
+        <span id="filter-match-count" class="filter-match-count"></span>
+        <button id="btn-clear-filters" class="btn btn-secondary btn-sm">Clear all</button>
+      </div>
+    </div>
+
+    <div id="toolbar" style="display:none">
+      <div class="toolbar-left">
+        <label class="select-all-label">
+          <input type="checkbox" id="check-all" /> Select all
+        </label>
+        <span id="selected-count">0 selected</span>
+      </div>
+      <div class="toolbar-right">
+        <button id="btn-download-only" class="btn btn-secondary" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download only
+        </button>
+        <button id="btn-download-install" class="btn btn-primary" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Download &amp; Install
+        </button>
+      </div>
+    </div>
+
+    <main id="driver-list"></main>
+
+    <div id="progress-panel" style="display:none">
+      <div class="progress-header">
+        <span id="progress-title">Processing...</span>
+        <button id="btn-cancel" class="btn btn-danger btn-sm">Cancel</button>
+      </div>
+      <div id="progress-items"></div>
+      <div class="progress-footer">
+        <button id="btn-open-folder" class="btn btn-secondary" style="display:none">Open Download Folder</button>
+        <button id="btn-done" class="btn btn-primary" style="display:none">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="onboarding-overlay" style="display:none">
+    <div id="onboarding-modal">
+      <div class="onboarding-logo">
+        <svg width="48" height="48" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="6" fill="#e31937"/>
+          <path d="M7 9h4v12h8v3H7V9zm10 3h8v3h-5v1.5h5V19h-5v2h5v3h-8V12z" fill="white"/>
+        </svg>
+      </div>
+      <h2 class="onboarding-title">Legion GO Driver Manager</h2>
+      <p class="onboarding-desc">
+        Fetches the latest official drivers straight from Lenovo's support API — verified against Lenovo's own checksums before anything touches your system.
+      </p>
+      <div class="onboarding-step">
+        <span class="onboarding-step-label">Choose your download folder</span>
+        <p class="onboarding-step-hint">Drivers will be organised into sub-folders by category (Audio, Chipset, Wi-Fi&hellip;)</p>
+        <div class="onboarding-folder-row">
+          <div id="onboarding-folder-display" class="onboarding-folder-display">No folder selected</div>
+          <button id="onboarding-browse" class="btn btn-secondary">Browse&hellip;</button>
+        </div>
+      </div>
+      <button id="onboarding-confirm" class="btn btn-primary btn-full" disabled>Get started &rarr;</button>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
