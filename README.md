@@ -4,6 +4,12 @@ Open-source tool to download and install official Lenovo drivers for the **Legio
 
 Unlike tools with hardcoded URLs, this fetches the driver list **live from Lenovo's official support API** every time it opens — so you always get the latest versions with no manual updates needed.
 
+<img width="946" height="793" alt="image" src="https://github.com/user-attachments/assets/2ec192f4-2f22-4ae8-8435-b0c4935dc7a7" />
+
+<img width="946" height="793" alt="image" src="https://github.com/user-attachments/assets/b96d5e02-8ef4-4228-871b-96103f765bff" />
+
+<img width="946" height="793" alt="image" src="https://github.com/user-attachments/assets/2ffd6c58-739a-4b6b-a2f8-a411ec419b2e" />
+
 ## What it does
 
 - Fetches all drivers for the Legion GO from `pcsupport.lenovo.com`
