@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('api', {
   saveSettings: (data) => ipcRenderer.invoke('save-settings', data),
   checkDownloads: (args) => ipcRenderer.invoke('check-downloads', args),
   deleteDownload: (filePath) => ipcRenderer.invoke('delete-download', filePath),
+  checkOutdated: (args) => ipcRenderer.invoke('check-outdated', args),
   onDownloadProgress: (callback) => {
     ipcRenderer.on('download-progress', (_event, data) => callback(data));
   },

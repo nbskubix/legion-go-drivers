@@ -4,7 +4,9 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const crypto = require('crypto');
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 const axios = require('axios');
 
 // Legion GO 8APU1 product GUID from Lenovo support
@@ -30,6 +32,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: false,
     },
     title: 'Legion GO Driver Manager',
     backgroundColor: '#1a1a2e',
@@ -136,6 +139,112 @@ ipcMain.handle('delete-download', async (event, filePath) => {
   } catch (err) {
     return { success: false, error: err.message };
   }
+});
+
+// Compare two version strings — returns -1 (a older), 0 (equal), 1 (a newer)
+function compareVersions(a, b) {
+  if (!a || !b) return null;
+  const pa = String(a).trim().split('.');
+  const pb = String(b).trim().split('.');
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const na = parseInt(pa[i] || '0', 10);
+    const nb = parseInt(pb[i] || '0', 10);
+    if (!isNaN(na) && !isNaN(nb)) {
+      if (na !== nb) return na < nb ? -1 : 1;
+    } else {
+      // Fall back to string compare for non-numeric segments (e.g. BIOS "N3CN40WW")
+      const sc = String(pa[i] || '').localeCompare(String(pb[i] || ''));
+      if (sc !== 0) return sc < 0 ? -1 : 1;
+    }
+  }
+  return 0;
+}
+
+// Check installed driver versions on Windows via CIM/registry
+ipcMain.handle('check-outdated', async (event, { drivers }) => {
+  if (process.platform !== 'win32') {
+    throw new Error('Version checking is only supported on Windows');
+  }
+
+  // One PowerShell pass — collect all detectable versions as JSON
+  const psScript = `
+$ErrorActionPreference = 'SilentlyContinue'
+$r = @{
+  audio      = $null; gpu       = $null; bios      = $null
+  wifi       = $null; bluetooth = $null; chipset   = $null
+  cardreader = $null; energy    = $null
+}
+$r.audio = (Get-CimInstance Win32_PnPSignedDriver |
+  Where-Object { $_.DeviceClass -eq 'MEDIA' -and $_.DeviceName -like '*Realtek*' } |
+  Select-Object -First 1).DriverVersion
+$r.gpu = (Get-CimInstance Win32_VideoController |
+  Where-Object { $_.Name -like '*AMD*' -or $_.Name -like '*Radeon*' } |
+  Select-Object -First 1).DriverVersion
+$r.bios = (Get-CimInstance Win32_BIOS).SMBIOSBIOSVersion
+$r.wifi = (Get-CimInstance Win32_PnPSignedDriver |
+  Where-Object { $_.DeviceClass -eq 'Net' -and
+    ($_.Manufacturer -like '*MediaTek*' -or $_.DeviceName -like '*MediaTek*' -or $_.DeviceName -like '*MT79*') } |
+  Select-Object -First 1).DriverVersion
+$r.bluetooth = (Get-CimInstance Win32_PnPSignedDriver |
+  Where-Object { $_.DeviceClass -eq 'Bluetooth' -and
+    ($_.Manufacturer -like '*MediaTek*' -or $_.DeviceName -like '*MediaTek*') } |
+  Select-Object -First 1).DriverVersion
+$r.chipset = (Get-CimInstance Win32_PnPSignedDriver |
+  Where-Object { $_.DeviceName -like '*AMD*' -and $_.DeviceClass -eq 'System' } |
+  Sort-Object DriverVersion -Descending | Select-Object -First 1).DriverVersion
+$r.cardreader = (Get-CimInstance Win32_PnPSignedDriver |
+  Where-Object { $_.DeviceClass -eq 'SmartCardReader' -or
+    $_.DeviceName -like '*Realtek*Card*' -or $_.DeviceName -like '*Genesys*' } |
+  Select-Object -First 1).DriverVersion
+$paths = @(
+  'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
+  'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'
+)
+$r.energy = (Get-ItemProperty $paths |
+  Where-Object { $_.DisplayName -like '*Energy*Management*' } |
+  Select-Object -First 1).DisplayVersion
+ConvertTo-Json $r -Compress
+`;
+
+  const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
+  const { stdout } = await execAsync(
+    `powershell.exe -NonInteractive -NoProfile -EncodedCommand ${encoded}`,
+    { timeout: 45000 }
+  );
+
+  let installed = {};
+  try { installed = JSON.parse(stdout.trim()); } catch { /* PS returned nothing detectable */ }
+
+  // Map each Lenovo driver name to its detection key
+  const NAME_KEY = {
+    'Realtek Audio Driver':      'audio',
+    'AMD Graphics Driver':       'gpu',
+    'BIOS Update':               'bios',
+    'Mediatek WLAN Driver':      'wifi',
+    'Mediatek Bluetooth Driver': 'bluetooth',
+    'AMD Chipset Driver':        'chipset',
+    'CardReader Driver':         'cardreader',
+    'Lenovo Energy Management':  'energy',
+  };
+
+  return drivers.map(d => {
+    const key = NAME_KEY[d.name] || null;
+    const installedVer = key && installed[key] ? String(installed[key]).trim() : null;
+    const lenovoVer = d.version || null;
+    const cmp = compareVersions(installedVer, lenovoVer);
+
+    let status = 'unknown';
+    if (installedVer && lenovoVer) {
+      if (cmp === 0)       status = 'up-to-date';
+      else if (cmp < 0)   status = 'outdated';
+      else                 status = 'newer';
+    } else if (!installedVer) {
+      status = 'not-detected';
+    }
+
+    return { docId: d.docId, title: d.title, installedVersion: installedVer, lenovoVersion: lenovoVer, status };
+  });
 });
 
 // Download a single driver with progress reporting and checksum verification

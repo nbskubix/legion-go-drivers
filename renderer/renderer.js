@@ -59,9 +59,11 @@ const filterBadge = document.getElementById('filter-badge');
 const filterMatchCount = document.getElementById('filter-match-count');
 const btnClearFilters = document.getElementById('btn-clear-filters');
 
-// Hide install button on non-Windows platforms
+// Windows-only controls
 if (window.api.platform !== 'win32') {
   btnDownloadInstall.style.display = 'none';
+} else {
+  document.getElementById('btn-check-outdated').style.display = 'inline-flex';
 }
 
 function setStatus(msg, type = '') {
@@ -693,6 +695,101 @@ function showDeleteConfirm(stateEl, docId, filePath) {
     e.stopPropagation();
     updateDownloadedUI(docId, downloadedMap.get(docId) || null);
   });
+}
+
+// ── Check Outdated ───────────────────────────────────────────────────────────
+
+const STATUS_LABEL = {
+  'up-to-date':   'Up to date',
+  'outdated':     'Update available',
+  'newer':        'Newer installed',
+  'not-detected': 'Not detected',
+  'unknown':      'Unknown',
+};
+
+document.getElementById('btn-check-outdated').addEventListener('click', openOutdatedPanel);
+document.getElementById('btn-outdated-close').addEventListener('click', closeOutdatedPanel);
+
+async function openOutdatedPanel() {
+  const panel     = document.getElementById('outdated-panel');
+  const body      = document.getElementById('outdated-body');
+  const title     = document.getElementById('outdated-title');
+  const footer    = document.getElementById('outdated-footer');
+  const summary   = document.getElementById('outdated-summary');
+  const btnSelect = document.getElementById('btn-select-outdated');
+
+  panel.style.display = 'flex';
+  footer.style.display = 'none';
+  btnSelect.style.display = 'none';
+  title.textContent = 'Checking installed versions…';
+  body.innerHTML = `<div class="outdated-loading"><div class="spinner"></div>Running version check — this takes a few seconds…</div>`;
+
+  const driverMeta = allDrivers.map(d => ({
+    docId: d.docId,
+    title: d.title,
+    name: d.file?.name || '',
+    version: d.file?.version || '',
+  }));
+
+  let results;
+  try {
+    results = await window.api.checkOutdated({ drivers: driverMeta });
+  } catch (err) {
+    body.innerHTML = `<div class="outdated-error">⚠ ${escHtml(err.message)}</div>`;
+    title.textContent = 'Check failed';
+    footer.style.display = 'flex';
+    summary.textContent = '';
+    return;
+  }
+
+  body.innerHTML = '';
+  let outdatedCount = 0;
+  const outdatedDocIds = [];
+
+  for (const r of results) {
+    if (r.status === 'outdated') { outdatedCount++; outdatedDocIds.push(r.docId); }
+    const row = document.createElement('div');
+    row.className = 'outdated-row';
+    row.innerHTML = `
+      <div class="outdated-driver-name" title="${escHtml(r.title)}">${escHtml(r.title)}</div>
+      <div class="outdated-versions">
+        <div class="outdated-ver-col">
+          <div class="outdated-ver-label">Installed</div>
+          <div class="outdated-ver-value ${r.installedVersion ? '' : 'muted'}">${escHtml(r.installedVersion || 'Not detected')}</div>
+        </div>
+        <div class="outdated-arrow">→</div>
+        <div class="outdated-ver-col">
+          <div class="outdated-ver-label">Available</div>
+          <div class="outdated-ver-value">${escHtml(r.lenovoVersion || '—')}</div>
+        </div>
+      </div>
+      <span class="badge badge-${escHtml(r.status)}">${escHtml(STATUS_LABEL[r.status] || r.status)}</span>
+    `;
+    body.appendChild(row);
+  }
+
+  title.textContent = 'Installed vs Available';
+  footer.style.display = 'flex';
+
+  if (outdatedCount > 0) {
+    summary.textContent = `${outdatedCount} driver${outdatedCount > 1 ? 's' : ''} can be updated`;
+    btnSelect.style.display = 'inline-flex';
+    btnSelect.onclick = () => {
+      // Pre-select outdated drivers in the main list
+      document.querySelectorAll('.driver-check input').forEach(cb => {
+        cb.checked = outdatedDocIds.includes(cb.dataset.docId);
+      });
+      updateSelectAll();
+      updateButtons();
+      closeOutdatedPanel();
+    };
+  } else {
+    summary.textContent = 'All detected drivers are up to date';
+  }
+}
+
+function closeOutdatedPanel() {
+  document.getElementById('outdated-panel').style.display = 'none';
 }
 
 // ── Onboarding ────────────────────────────────────────────────────────────────
