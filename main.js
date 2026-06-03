@@ -329,26 +329,20 @@ ipcMain.handle('download-driver', async (event, { docId, url, destDir, sha256, s
   return { success: true, path: destPath, algorithm: null };
 });
 
-// Run an installer and wait for it to exit
-ipcMain.handle('install-driver', async (event, { docId, filePath }) => {
-  return new Promise((resolve) => {
-    const ext = path.extname(filePath).toLowerCase();
 
-    let proc;
-    if (ext === '.exe') {
-      proc = spawn(filePath, ['/VERYSILENT', '/NORESTART', '/SP-'], { detached: true, stdio: 'ignore' });
-    } else if (ext === '.msi') {
-      proc = spawn('msiexec', ['/i', filePath, '/quiet', '/norestart'], { detached: true, stdio: 'ignore' });
-    } else {
-      // Fall back to ShellExecute for unknown types
-      shell.openPath(filePath);
-      resolve({ success: true, manual: true });
-      return;
-    }
+// Extract the pre-bundled Wi-Fi driver to a user-chosen location
+ipcMain.handle('extract-wifi-driver', async (event, destDir) => {
+  const src = app.isPackaged
+    ? path.join(process.resourcesPath, 'wifi-driver.exe')
+    : path.join(__dirname, 'resources', 'wifi-driver.exe');
 
-    proc.on('close', code => resolve({ success: code === 0, code }));
-    proc.on('error', err => resolve({ success: false, error: err.message }));
-  });
+  if (!fs.existsSync(src)) {
+    throw new Error('Bundled Wi-Fi driver not found.\nRun "npm run prebuild" before building the app.');
+  }
+
+  const dest = path.join(destDir, 'Legion-GO-WiFi-Driver.exe');
+  fs.copyFileSync(src, dest);
+  return { path: dest };
 });
 
 // Open a folder in Explorer/Finder

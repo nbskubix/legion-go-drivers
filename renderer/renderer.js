@@ -49,7 +49,6 @@ const checkAll = document.getElementById('check-all');
 const selectedCount = document.getElementById('selected-count');
 const folderLabel = document.getElementById('folder-label');
 const btnDownloadOnly = document.getElementById('btn-download-only');
-const btnDownloadInstall = document.getElementById('btn-download-install');
 const searchBar = document.getElementById('search-bar');
 const searchInput = document.getElementById('search-input');
 const btnClearSearch = document.getElementById('btn-clear-search');
@@ -60,9 +59,7 @@ const filterMatchCount = document.getElementById('filter-match-count');
 const btnClearFilters = document.getElementById('btn-clear-filters');
 
 // Windows-only controls
-if (window.api.platform !== 'win32') {
-  btnDownloadInstall.style.display = 'none';
-} else {
+if (window.api.platform === 'win32') {
   document.getElementById('btn-check-outdated').style.display = 'inline-flex';
 }
 
@@ -305,7 +302,6 @@ function updateButtons() {
   const anyChecked = document.querySelector('.driver-check input:checked') !== null;
   const hasFolder = downloadDir !== null;
   btnDownloadOnly.disabled = !anyChecked || !hasFolder;
-  btnDownloadInstall.disabled = !anyChecked || !hasFolder;
 }
 
 function getSelectedDrivers() {
@@ -330,6 +326,46 @@ driverList.addEventListener('click', (e) => {
   }
 });
 
+// ── Wi-Fi driver extraction ───────────────────────────────────────────────────
+
+async function extractWifiDriver(btn) {
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Choosing folder…';
+
+  const destDir = await window.api.chooseDownloadDir();
+  if (!destDir) {
+    btn.disabled = false;
+    btn.textContent = original;
+    return;
+  }
+
+  btn.textContent = 'Extracting…';
+  try {
+    const result = await window.api.extractWifiDriver(destDir);
+    btn.textContent = 'Extracted ✓';
+    btn.classList.add('btn-extracted');
+    setTimeout(() => {
+      window.api.openFolder(destDir);
+    }, 400);
+    // Brief success state, then reset
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = original;
+      btn.classList.remove('btn-extracted');
+    }, 4000);
+  } catch (err) {
+    btn.textContent = 'Failed — see console';
+    btn.disabled = false;
+    console.error(err);
+    setTimeout(() => { btn.textContent = original; }, 3000);
+  }
+}
+
+document.getElementById('btn-wifi-extract').addEventListener('click', e => extractWifiDriver(e.currentTarget));
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 document.getElementById('btn-refresh').addEventListener('click', loadDrivers);
 
 document.getElementById('btn-folder').addEventListener('click', async () => {
@@ -341,7 +377,6 @@ document.getElementById('btn-folder').addEventListener('click', async () => {
 });
 
 btnDownloadOnly.addEventListener('click', () => startProcess('download'));
-btnDownloadInstall.addEventListener('click', () => startProcess('install'));
 
 document.getElementById('btn-cancel').addEventListener('click', () => { isCancelled = true; });
 document.getElementById('btn-done').addEventListener('click', closeProgressPanel);
@@ -356,7 +391,7 @@ async function startProcess(mode) {
   isCancelled = false;
   progressItems.innerHTML = '';
   progressPanel.style.display = 'flex';
-  progressTitle.textContent = mode === 'install' ? 'Downloading & Installing drivers...' : 'Downloading drivers...';
+  progressTitle.textContent = 'Downloading drivers...';
   document.getElementById('btn-open-folder').style.display = 'none';
   document.getElementById('btn-done').style.display = 'none';
 
@@ -419,23 +454,7 @@ async function startProcess(mode) {
         version: driver.file.version || '',
       });
 
-      if (mode === 'install') {
-        setState(state, fill, 'Installing…', 'state-installing', 100);
-        const instResult = await window.api.installDriver({
-          docId: driver.docId,
-          filePath: dlResult.path,
-        });
-        if (instResult.manual) {
-          setState(state, fill, 'Opened for install', 'state-done', 100);
-        } else if (instResult.success) {
-          setState(state, fill, 'Installed ✓', 'state-done', 100);
-          fill.classList.add('done');
-        } else {
-          throw new Error(`Installer exited with code ${instResult.code}`);
-        }
-      } else {
-        // Progress events already drove the UI to verified/done state — nothing to set here
-      }
+      // Progress events drove the UI to verified/done state — nothing to set here
     } catch (err) {
       errors++;
       setState(state, fill, `Error: ${err.message}`, 'state-error', 100);
@@ -450,7 +469,7 @@ async function startProcess(mode) {
   } else if (errors > 0) {
     progressTitle.textContent = `Done — ${errors} error(s). Check items above.`;
   } else {
-    progressTitle.textContent = mode === 'install' ? 'All done! Drivers installed.' : 'Download complete!';
+    progressTitle.textContent = 'Download complete!';
   }
 
   document.getElementById('btn-open-folder').style.display = 'inline-flex';
@@ -809,6 +828,11 @@ function showOnboarding() {
   const confirm = document.getElementById('onboarding-confirm');
 
   overlay.style.display = 'flex';
+
+  const wifiBtn = document.getElementById('onboarding-extract-wifi');
+  if (wifiBtn) {
+    wifiBtn.addEventListener('click', () => extractWifiDriver(wifiBtn));
+  }
 
   browse.addEventListener('click', async () => {
     const dir = await window.api.chooseDownloadDir();

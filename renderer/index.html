@@ -18,6 +18,12 @@
         <span>Legion GO Driver Manager</span>
       </div>
       <div class="header-actions">
+        <button id="btn-wifi-extract" class="btn btn-wifi" title="No internet? Extract the bundled Wi-Fi driver to get online">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>
+          </svg>
+          Wi-Fi Driver
+        </button>
         <button id="btn-refresh" class="btn btn-secondary" title="Re-fetch from Lenovo">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
@@ -94,12 +100,6 @@
           </svg>
           Download only
         </button>
-        <button id="btn-download-install" class="btn btn-primary" disabled>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Download &amp; Install
-        </button>
       </div>
     </div>
 
@@ -157,6 +157,20 @@
           <button id="onboarding-browse" class="btn btn-secondary">Browse&hellip;</button>
         </div>
       </div>
+      <div class="onboarding-divider">
+        <span>No internet on this PC?</span>
+      </div>
+      <div class="onboarding-wifi-block">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:#f59e0b">
+          <path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>
+        </svg>
+        <div class="onboarding-wifi-text">
+          <strong>Wi-Fi driver bundled inside this app</strong>
+          <span>Fresh Windows install with no network? Extract the driver, run it, then come back.</span>
+        </div>
+        <button id="onboarding-extract-wifi" class="btn btn-wifi btn-sm">Extract</button>
+      </div>
+
       <button id="onboarding-confirm" class="btn btn-primary btn-full" disabled>Get started &rarr;</button>
     </div>
   </div>

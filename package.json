@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "prebuild": "node scripts/download-wifi-driver.js",
     "build": "electron-builder"
   },
   "keywords": ["lenovo", "legion-go", "drivers"],
@@ -24,6 +25,12 @@
       "main.js",
       "preload.js",
       "renderer/**"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/wifi-driver.exe",
+        "to": "wifi-driver.exe"
+      }
     ],
     "directories": {
       "output": "dist"
